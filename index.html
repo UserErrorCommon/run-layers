@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Run Layers</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#EDF1F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C181E" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+<meta name="apple-mobile-web-app-title" content="Run Layers">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky run-feel strip on top; answer card first, then conditions, then the full chart.
+   Wide screens split into two columns (answer + chart | conditions). */
+:root{
+  --bg:#EDF1F3; --surface:#FFFFFF; --sunk:#DFE7EB; --ink:#10222B; --muted:#4A606C;
+  --line:#C6D3D9; --accent:#0A6C8C; --on-accent:#FFFFFF; --hl:#D6EAF1;
+  --s0:#3E63D8; --s1:#1F8DB4; --s2:#2C9E76; --s3:#C79A1F; --s4:#D4592A;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C181E; --surface:#14252D; --sunk:#1B313B; --ink:#E7EFF2; --muted:#9DB3BD;
+    --line:#2A4350; --accent:#4CC3E6; --on-accent:#06222C; --hl:#1A3B49;
+    --s0:#6A8CF2; --s1:#38B4DC; --s2:#48C99C; --s3:#E0BE45; --s4:#F08A55;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C181E; --surface:#14252D; --sunk:#1B313B; --ink:#E7EFF2; --muted:#9DB3BD;
+  --line:#2A4350; --accent:#4CC3E6; --on-accent:#06222C; --hl:#1A3B49;
+  --s0:#6A8CF2; --s1:#38B4DC; --s2:#48C99C; --s3:#E0BE45; --s4:#F08A55;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--f-body);-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.col{max-width:560px;margin:0 auto}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit}
+.num,.mono{font-variant-numeric:tabular-nums}
+
+/* sticky strip */
+.strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.strip-in{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;padding-block:10px}
+.strip-num{display:flex;flex-direction:column;gap:4px;min-width:88px}
+.lbl{font:500 11px/1 var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.big{font:700 56px/.95 var(--f-display);letter-spacing:-.01em}
+.strip-name{font:700 24px/1.05 var(--f-display);text-wrap:balance}
+.strip-sub{color:var(--muted);font-size:14px;margin-top:3px}
+
+/* layout */
+.layout{display:grid;gap:28px;padding-block:18px 44px}
+.brand{font:500 12px/1 var(--f-data);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+h1{font:700 34px/1 var(--f-display);margin:0 0 4px;letter-spacing:.005em}
+h2{font:500 12px/1 var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px}
+
+/* scale */
+.scale{margin:16px 0 26px}
+.bar{position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--s0) 0%,var(--s1) 28%,var(--s2) 52%,var(--s3) 74%,var(--s4) 100%)}
+.notch{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.55)}
+.pin{position:absolute;top:-6px;bottom:-6px;width:4px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 2px var(--surface)}
+.ticks{position:relative;height:16px;margin-top:8px}
+.tick{position:absolute;transform:translateX(-50%);font:500 11px/1 var(--f-data);color:var(--muted)}
+
+/* kit */
+.kit{margin:0}
+.kit>div{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.kit dt{font:500 11px/1.6 var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.kit dd{margin:0;font-size:17px;font-weight:500}
+.extras{list-style:none;margin:6px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;gap:10px}
+.extras:empty{display:none}
+.extras li{position:relative;padding-left:18px;font-size:15px}
+.extras li::before{content:"";position:absolute;left:2px;top:.55em;width:7px;height:7px;border-radius:1px;background:var(--accent)}
+.tip{margin:16px 0 0;color:var(--muted);font-size:14px}
+.math{margin:0}
+.math>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:15px}
+.math dt{margin:0;min-width:0}
+.math dd{margin:0;font-family:var(--f-data);font-weight:500;font-variant-numeric:tabular-nums}
+.math .sum{font-weight:600;border-top:2px solid var(--ink)}
+.math .sum dd{font-weight:500}
+.result h2.sp{margin-top:22px}
+
+/* inputs */
+.inputs{display:block}
+.field{border:0;margin:0 0 22px;padding:0;min-width:0}
+.field legend,.field>label,.row-lbl label{font:500 12px/1 var(--f-data);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0}
+.field legend{margin-bottom:9px}
+.field>label{display:block;margin-bottom:9px}
+.row-lbl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.row-lbl output{font:500 15px var(--f-data);font-variant-numeric:tabular-nums}
+.temp-row{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:10px;align-items:center;margin-bottom:6px}
+.step{height:52px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:28px;line-height:1;cursor:pointer}
+.step:active{background:var(--sunk)}
+#temp{width:100%;min-width:0;height:52px;text-align:center;font:700 44px/1 var(--f-display);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 6px;-moz-appearance:textfield;appearance:textfield}
+#temp::-webkit-outer-spin-button,#temp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.range{width:100%;height:32px;accent-color:var(--accent);margin:0}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:3px;background:var(--sunk);padding:3px;border-radius:12px}
+.seg label{position:relative;display:block;min-width:0}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;border-radius:9px;font-weight:600;font-size:15px;text-align:center;color:var(--muted)}
+.seg input:checked+span{background:var(--accent);color:var(--on-accent)}
+.seg input:focus-visible+span{outline:3px solid var(--ink);outline-offset:1px}
+.hint{margin:8px 0 0;color:var(--muted);font-size:14px}
+details.tune{border-top:1px solid var(--line);padding-top:6px}
+summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font:500 12px var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tune-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 14px}
+.tune-grid label{display:grid;gap:6px;font-size:14px;color:var(--muted);min-width:0}
+.tune-grid input{width:100%;height:44px;font:600 18px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 10px}
+.ghost{min-height:44px;padding:0 16px;background:transparent;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-weight:600}
+
+/* chart */
+.chart ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.chart li{display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;padding:11px 10px;border-bottom:1px solid var(--line)}
+.chart li[aria-current="true"]{background:var(--hl);border-radius:8px}
+.rng{font:500 13px/1.5 var(--f-data);font-variant-numeric:tabular-nums;color:var(--muted);padding-top:2px}
+.cn{font:700 20px/1.1 var(--f-display)}
+.cs{font-size:14px;color:var(--muted);margin-top:3px}
+.note{color:var(--muted);font-size:14px;margin:14px 0 0}
+
+@media (min-width:880px){
+  .col{max-width:980px}
+  .layout{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);column-gap:44px;align-items:start}
+  .result{grid-column:1}
+  .chart{grid-column:1}
+  .inputs{grid-column:2;grid-row:1 / span 2}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="strip">
+  <div class="gut">
+    <div class="col strip-in">
+      <div class="strip-num"><span class="lbl">Run-feel</span><span id="stripNum" class="big num">--</span></div>
+      <div>
+        <div id="stripName" class="strip-name">Loading</div>
+        <div id="stripSub" class="strip-sub"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="gut">
+  <div class="col layout">
+
+    <section class="result card" aria-labelledby="h-wear">
+      <p class="brand">Run Layers</p>
+      <h1 id="h-wear">Wear this</h1>
+      <div class="scale" aria-hidden="true">
+        <div class="bar" id="bar"></div>
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <dl class="kit" id="kit"></dl>
+      <ul class="extras" id="extras"></ul>
+      <p class="tip">Start a little cold. Within 10 to 15 minutes you will be at the run-feel temperature.</p>
+      <h2 class="sp">How it adds up</h2>
+      <dl class="math" id="math"></dl>
+    </section>
+
+    <section class="inputs" aria-labelledby="h-cond">
+      <h2 id="h-cond">Conditions</h2>
+
+      <div class="field">
+        <label for="temp">Air temperature, &deg;F</label>
+        <div class="temp-row">
+          <button type="button" class="step" id="tempDown" aria-label="One degree colder">&minus;</button>
+          <input id="temp" type="number" min="-40" max="115" step="1" value="38">
+          <button type="button" class="step" id="tempUp" aria-label="One degree warmer">+</button>
+        </div>
+        <input id="tempRange" class="range" type="range" min="-20" max="100" step="1" value="38" aria-label="Air temperature slider">
+      </div>
+
+      <div class="field">
+        <div class="row-lbl"><label for="wind">Wind</label><output id="windOut" for="wind">8 mph</output></div>
+        <input id="wind" class="range" type="range" min="0" max="35" step="1" value="8">
+      </div>
+
+      <div class="field" id="humRow" hidden>
+        <div class="row-lbl"><label for="hum">Humidity</label><output id="humOut" for="hum">50%</output></div>
+        <input id="hum" class="range" type="range" min="10" max="100" step="1" value="50">
+      </div>
+
+      <fieldset class="field"><legend>Light</legend><div class="seg" id="seg-sky"></div></fieldset>
+      <fieldset class="field"><legend>Precipitation</legend><div class="seg" id="seg-wet"></div></fieldset>
+      <fieldset class="field"><legend>Run type</legend><div class="seg" id="seg-run"></div><p class="hint" id="runHint"></p></fieldset>
+      <fieldset class="field"><legend>You tend to</legend><div class="seg" id="seg-nature"></div></fieldset>
+
+      <details class="tune">
+        <summary>Tune the math</summary>
+        <div class="tune-grid" id="tuneGrid"></div>
+        <button type="button" class="ghost" id="tuneReset">Reset to defaults</button>
+      </details>
+    </section>
+
+    <section class="chart" aria-labelledby="h-chart">
+      <h2 id="h-chart">Full chart, by run-feel</h2>
+      <ol id="chartList"></ol>
+      <p class="note">Wind chill is applied at 50&deg; and below with wind of 3 mph or more. Heat index is applied at 80&deg; and above. Run-feel is the adjusted number the chart is read against, not the air temperature.</p>
+    </section>
+
+  </div>
+</main>
+
+<script>
+/*CALC*/
+var DEF_IN = {temp:38, wind:8, hum:50, sky:'sun', wet:'dry', run:'easy', nature:0};
+var DEF_TUNE = {easy:12, long:18, workout:20, race:20, sun:5, rain:5, snow:3, nature:5};
+
+var BANDS = [
+  {min:70, range:'70° +', name:'Singlet, short shorts', head:'Visor or light cap', top:'Singlet', bottom:'Short split shorts', hands:'None'},
+  {min:60, range:'60–69°', name:'Singlet or tee, shorts', head:'Cap optional', top:'Singlet or light tee', bottom:'Shorts', hands:'None'},
+  {min:50, range:'50–59°', name:'Short sleeve, shorts', head:'None needed', top:'Short-sleeve tech tee', bottom:'Shorts', hands:'None'},
+  {min:40, range:'40–49°', name:'Long sleeve, shorts', head:'Ear headband, optional', top:'Long-sleeve tech shirt', bottom:'Shorts, or light tights near 40°', hands:'Light gloves, optional'},
+  {min:30, range:'30–39°', name:'Long sleeve, tights', head:'Headband over the ears', top:'Long-sleeve tech shirt', bottom:'Tights', hands:'Gloves'},
+  {min:20, range:'20–29°', name:'Two layers, tights', head:'Headband or hat', top:'Long sleeve under a short sleeve, or add a light jacket', bottom:'Tights', hands:'Gloves'},
+  {min:10, range:'10–19°', name:'Two layers and a windbreaker', head:'Hat', top:'Two layers under a windbreaker', bottom:'Tights, plus wind pants if breezy', hands:'Gloves or mittens'},
+  {min:0,  range:'0–9°',   name:'Shell and wind pants', head:'Hat, plus a face cover', top:'Two layers under a shell', bottom:'Tights under wind pants', hands:'Mittens'},
+  {min:-Infinity, range:'Below 0°', name:'Full winter kit', head:'Balaclava, or hat with face cover', top:'Thermal base, mid layer, insulated shell', bottom:'Fleece-lined tights under wind pants', hands:'Mittens with liners'}
+];
+
+function windChill(t, v){
+  if (t > 50 || v < 3) return t;
+  var p = Math.pow(v, 0.16);
+  return 35.74 + 0.6215*t - 35.75*p + 0.4275*t*p;
+}
+function heatIndex(t, rh){
+  if (t < 80) return t;
+  var hi = -42.379 + 2.04901523*t + 10.14333127*rh - 0.22475541*t*rh - 0.00683783*t*t
+         - 0.05481717*rh*rh + 0.00122874*t*t*rh + 0.00085282*t*rh*rh - 0.00000199*t*t*rh*rh;
+  if (rh < 13 && t <= 112) hi -= ((13 - rh)/4) * Math.sqrt((17 - Math.abs(t - 95))/17);
+  if (rh > 85 && t <= 87) hi += ((rh - 85)/10) * ((87 - t)/5);
+  return Math.max(hi, t);
+}
+function compute(inp, tune){
+  var air = inp.temp, feels = air, kind = 'none';
+  if (air <= 50 && inp.wind >= 3){ feels = windChill(air, inp.wind); kind = 'chill'; }
+  else if (air >= 80){ feels = heatIndex(air, inp.hum); kind = 'heat'; }
+  feels = Math.round(feels);
+  var effort = tune[inp.run];
+  var sun = inp.sky === 'sun' ? tune.sun : 0;
+  var wet = inp.wet === 'rain' ? -tune.rain : (inp.wet === 'snow' ? -tune.snow : 0);
+  var nature = inp.nature * tune.nature;
+  return {air:air, feels:feels, kind:kind, effort:effort, sun:sun, wet:wet, nature:nature,
+          run:Math.round(feels + effort + sun + wet + nature)};
+}
+function bandIndex(run){
+  for (var i = 0; i < BANDS.length; i++){ if (run >= BANDS[i].min) return i; }
+  return BANDS.length - 1;
+}
+function socksFor(inp, r){
+  return (r.run < 40 || inp.wet !== 'dry') ? 'Wool or thick tech socks' : 'Light tech socks';
+}
+function extrasFor(inp, r){
+  var out = [];
+  if (r.feels <= -15) out.push('Wind chill is in frostbite territory. Cover all skin or move the run indoors.');
+  if (inp.wet === 'rain') out.push('Rain: water-resistant shell or a cap with a brim. No cotton. Dry clothes waiting at the end.');
+  if (inp.wet === 'snow') out.push('Snow: traction devices or trail shoes, and a bright top.');
+  if (inp.sky === 'dark') out.push('Dark: reflective vest or lights, plus a headlamp.');
+  if (inp.wind >= 15 && inp.temp < 70) out.push('Wind: block it on your chest. Run into it first so it is behind you on the way home.');
+  if (r.feels >= 80) out.push('Heat: carry fluids, wear light colors, and expect to run slower.');
+  if (inp.sky === 'sun' && inp.temp >= 50) out.push('Sun: sunglasses and sunscreen on exposed skin.');
+  if (inp.run === 'race' && inp.temp < 60) out.push('Race: wear a throwaway layer to the start, such as an old sweatshirt, and toss it after the first mile.');
+  if (inp.run === 'long' && inp.temp < 55) out.push('Long run: stash or carry a thin layer in case you stop or the weather turns.');
+  return out;
+}
+/*ENDCALC*/
+
+(function(){
+  'use strict';
+  var KEY = 'runlayers.v1';
+  var $ = function(id){ return document.getElementById(id); };
+  var clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
+  var inp = Object.assign({}, DEF_IN), tune = Object.assign({}, DEF_TUNE);
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved){
+      if (saved.inp) Object.assign(inp, saved.inp);
+      if (saved.tune) Object.assign(tune, saved.tune);
+    }
+  } catch (e) {}
+  ['temp','wind','hum','nature'].forEach(function(k){ if (!isFinite(inp[k])) inp[k] = DEF_IN[k]; });
+  Object.keys(DEF_TUNE).forEach(function(k){ if (!isFinite(tune[k])) tune[k] = DEF_TUNE[k]; });
+  if (['sun','cloud','dark'].indexOf(inp.sky) < 0) inp.sky = DEF_IN.sky;
+  if (['dry','rain','snow'].indexOf(inp.wet) < 0) inp.wet = DEF_IN.wet;
+  if (['easy','long','workout','race'].indexOf(inp.run) < 0) inp.run = DEF_IN.run;
+
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify({inp:inp, tune:tune})); } catch (e) {} }
+  function fmt(n){ return (n < 0 ? '−' : '') + Math.abs(Math.round(n)) + '°'; }
+  function sgn(n){ return (n < 0 ? '−' : '+') + Math.abs(Math.round(n)) + '°'; }
+
+  var LABELS = {
+    run: {easy:'Easy run', long:'Long run', workout:'Workout', race:'Race'},
+    wet: {rain:'Rain', snow:'Snow'},
+    nature: {'-1':'You run cold', '1':'You run warm'}
+  };
+
+  function buildSeg(id, name, opts, onPick){
+    var box = $(id);
+    opts.forEach(function(o){
+      var lab = document.createElement('label');
+      var i = document.createElement('input');
+      i.type = 'radio'; i.name = name; i.value = o[0]; i.id = name + '-' + String(o[0]).replace('-', 'm');
+      var s = document.createElement('span'); s.textContent = o[1];
+      lab.appendChild(i); lab.appendChild(s); box.appendChild(lab);
+    });
+    box.addEventListener('change', function(e){ if (e.target && e.target.name === name) onPick(e.target.value); });
+  }
+  function syncSeg(id, val){
+    $(id).querySelectorAll('input').forEach(function(i){ i.checked = (i.value === String(val)); });
+  }
+
+  buildSeg('seg-sky', 'sky', [['sun','Sunny'],['cloud','Overcast'],['dark','Dark']], function(v){ inp.sky = v; update(); });
+  buildSeg('seg-wet', 'wet', [['dry','Dry'],['rain','Rain'],['snow','Snow']], function(v){ inp.wet = v; update(); });
+  buildSeg('seg-run', 'run', [['easy','Easy'],['long','Long'],['workout','Workout'],['race','Race']], function(v){ inp.run = v; update(); });
+  buildSeg('seg-nature', 'nature', [['-1','Run cold'],['0','Average'],['1','Run warm']], function(v){ inp.nature = Number(v); update(); });
+
+  var TUNE_FIELDS = [
+    ['easy','Easy run adds'], ['long','Long run adds'], ['workout','Workout adds'], ['race','Race adds'],
+    ['sun','Sun adds'], ['rain','Rain subtracts'], ['snow','Snow subtracts'], ['nature','Run cold or warm ±']
+  ];
+  var grid = $('tuneGrid');
+  TUNE_FIELDS.forEach(function(f){
+    var lab = document.createElement('label'); lab.setAttribute('for', 'tune-' + f[0]);
+    lab.appendChild(document.createTextNode(f[1] + ' (°)'));
+    var i = document.createElement('input');
+    i.type = 'number'; i.id = 'tune-' + f[0]; i.min = '0'; i.max = '40'; i.step = '1';
+    i.addEventListener('input', function(){
+      var v = parseInt(i.value, 10);
+      if (isFinite(v)){ tune[f[0]] = clamp(v, 0, 40); update(); }
+    });
+    lab.appendChild(i); grid.appendChild(lab);
+  });
+  function syncTune(){
+    TUNE_FIELDS.forEach(function(f){
+      var el = $('tune-' + f[0]);
+      if (document.activeElement !== el) el.value = tune[f[0]];
+    });
+  }
+  $('tuneReset').addEventListener('click', function(){
+    tune = Object.assign({}, DEF_TUNE); syncTune(); update();
+  });
+
+  function setTemp(v){
+    inp.temp = clamp(Math.round(v), -40, 115);
+    update();
+  }
+  $('temp').addEventListener('input', function(){
+    var v = parseInt($('temp').value, 10);
+    if (isFinite(v)) setTemp(v);
+  });
+  $('temp').addEventListener('blur', function(){ $('temp').value = inp.temp; });
+  $('tempRange').addEventListener('input', function(){ setTemp(Number($('tempRange').value)); });
+  $('tempDown').addEventListener('click', function(){ setTemp(inp.temp - 1); });
+  $('tempUp').addEventListener('click', function(){ setTemp(inp.temp + 1); });
+  $('wind').addEventListener('input', function(){ inp.wind = Number($('wind').value); update(); });
+  $('hum').addEventListener('input', function(){ inp.hum = Number($('hum').value); update(); });
+
+  // static scale decorations
+  (function(){
+    var bar = $('bar'), ticks = $('ticks');
+    BANDS.forEach(function(b){
+      if (b.min === -Infinity) return;
+      var n = document.createElement('div'); n.className = 'notch'; n.style.left = (b.min + 10) + '%'; bar.appendChild(n);
+    });
+    var pin = document.createElement('div'); pin.className = 'pin'; pin.id = 'pin'; bar.appendChild(pin);
+    [0,20,40,60,80].forEach(function(v){
+      var t = document.createElement('span'); t.className = 'tick'; t.style.left = (v + 10) + '%'; t.textContent = v + '°'; ticks.appendChild(t);
+    });
+  })();
+
+  function row(tag, k, v, cls){
+    var d = document.createElement('div'); if (cls) d.className = cls;
+    var a = document.createElement(tag[0]); a.textContent = k;
+    var b = document.createElement(tag[1]); b.textContent = v;
+    d.appendChild(a); d.appendChild(b); return d;
+  }
+
+  function render(){
+    var r = compute(inp, tune), bi = bandIndex(r.run), b = BANDS[bi];
+
+    $('stripNum').textContent = fmt(r.run);
+    $('stripName').textContent = b.name;
+    $('stripSub').textContent = r.kind === 'chill' ? 'Air ' + fmt(r.air) + ' · wind chill ' + fmt(r.feels)
+      : r.kind === 'heat' ? 'Air ' + fmt(r.air) + ' · heat index ' + fmt(r.feels)
+      : 'Air ' + fmt(r.air);
+
+    $('pin').style.left = clamp(r.run + 10, 0, 100) + '%';
+
+    var kit = $('kit'); kit.textContent = '';
+    [['Head', b.head], ['Top', b.top], ['Bottom', b.bottom], ['Hands', b.hands], ['Socks', socksFor(inp, r)]].forEach(function(p){
+      kit.appendChild(row(['dt','dd'], p[0], p[1]));
+    });
+
+    var ex = $('extras'); ex.textContent = '';
+    extrasFor(inp, r).forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ex.appendChild(li); });
+
+    var m = $('math'); m.textContent = '';
+    m.appendChild(row(['dt','dd'], 'Air temperature', fmt(r.air)));
+    if (r.kind === 'chill') m.appendChild(row(['dt','dd'], 'Wind chill at ' + inp.wind + ' mph', sgn(r.feels - r.air)));
+    if (r.kind === 'heat') m.appendChild(row(['dt','dd'], 'Heat index at ' + inp.hum + '% humidity', sgn(r.feels - r.air)));
+    m.appendChild(row(['dt','dd'], LABELS.run[inp.run] + ' warms you', sgn(r.effort)));
+    if (r.sun) m.appendChild(row(['dt','dd'], 'Sun', sgn(r.sun)));
+    if (r.wet) m.appendChild(row(['dt','dd'], LABELS.wet[inp.wet], sgn(r.wet)));
+    if (r.nature) m.appendChild(row(['dt','dd'], LABELS.nature[String(inp.nature)], sgn(r.nature)));
+    m.appendChild(row(['dt','dd'], 'Run-feel', fmt(r.run), 'sum'));
+
+    var list = $('chartList'); list.textContent = '';
+    BANDS.forEach(function(x, i){
+      var li = document.createElement('li');
+      if (i === bi) li.setAttribute('aria-current', 'true');
+      var rg = document.createElement('div'); rg.className = 'rng'; rg.textContent = x.range;
+      var bd = document.createElement('div');
+      var cn = document.createElement('div'); cn.className = 'cn'; cn.textContent = x.name;
+      var cs = document.createElement('div'); cs.className = 'cs'; cs.textContent = x.top + ' · ' + x.bottom + ' · ' + x.hands;
+      bd.appendChild(cn); bd.appendChild(cs); li.appendChild(rg); li.appendChild(bd); list.appendChild(li);
+    });
+
+    $('runHint').textContent = LABELS.run[inp.run] + ' effort feels about ' + tune[inp.run] + '° warmer than the air once you are warmed up.';
+  }
+
+  function sync(){
+    if (document.activeElement !== $('temp')) $('temp').value = inp.temp;
+    $('tempRange').value = inp.temp;
+    $('wind').value = inp.wind; $('windOut').textContent = inp.wind + ' mph';
+    $('hum').value = inp.hum; $('humOut').textContent = inp.hum + '%';
+    $('humRow').hidden = inp.temp < 70;
+    syncSeg('seg-sky', inp.sky); syncSeg('seg-wet', inp.wet); syncSeg('seg-run', inp.run); syncSeg('seg-nature', inp.nature);
+    syncTune();
+  }
+  function update(){ save(); sync(); render(); }
+  update();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    try { navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+  });
+}
+</script>
+</body>
+</html>
