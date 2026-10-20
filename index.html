@@ -124,6 +124,12 @@ summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font:500 
 .tune-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 14px}
 .tune-grid label{display:grid;gap:6px;font-size:14px;color:var(--muted);min-width:0}
 .tune-grid input{width:100%;height:44px;font:600 18px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 10px}
+.live{margin:0 0 24px}
+.live-btn{width:100%;min-height:52px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);font-weight:600;font-size:17px;cursor:pointer}
+.live-btn:disabled{opacity:.6;cursor:default}
+.chk{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:4px;font-size:15px;color:var(--muted)}
+.chk input{width:22px;height:22px;margin:0;accent-color:var(--accent)}
+.note a{color:inherit}
 .ghost{min-height:44px;padding:0 16px;background:transparent;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-weight:600}
 
 /* chart */
@@ -178,6 +184,12 @@ summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font:500 
     <section class="inputs" aria-labelledby="h-cond">
       <h2 id="h-cond">Conditions</h2>
 
+      <div class="live">
+        <button type="button" class="live-btn" id="liveBtn">Use current weather</button>
+        <p class="hint" id="liveStatus">Fills in temperature, wind, humidity, light and rain for where you are.</p>
+        <label class="chk" for="autoFill"><input type="checkbox" id="autoFill"> Fill automatically when I open the app</label>
+      </div>
+
       <div class="field">
         <label for="temp">Air temperature, &deg;F</label>
         <div class="temp-row">
@@ -213,7 +225,7 @@ summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font:500 
     <section class="chart" aria-labelledby="h-chart">
       <h2 id="h-chart">Full chart, by run-feel</h2>
       <ol id="chartList"></ol>
-      <p class="note">Wind chill is applied at 50&deg; and below with wind of 3 mph or more. Heat index is applied at 80&deg; and above. Run-feel is the adjusted number the chart is read against, not the air temperature.</p>
+      <p class="note">Wind chill is applied at 50&deg; and below with wind of 3 mph or more. Heat index is applied at 80&deg; and above. Run-feel is the adjusted number the chart is read against, not the air temperature. Live weather data by <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
     </section>
 
   </div>
@@ -281,6 +293,18 @@ function extrasFor(inp, r){
   if (inp.run === 'long' && inp.temp < 55) out.push('Long run: stash or carry a thin layer in case you stop or the weather turns.');
   return out;
 }
+function weatherToInputs(c){
+  var code = c.weather_code;
+  var snowy = [71,73,75,77,85,86].indexOf(code) >= 0 || c.snowfall > 0;
+  var rainy = c.rain > 0 || c.precipitation > 0 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95;
+  return {
+    temp: Math.max(-40, Math.min(115, Math.round(c.temperature_2m))),
+    wind: Math.max(0, Math.min(35, Math.round(c.wind_speed_10m))),
+    hum: Math.max(10, Math.min(100, Math.round(c.relative_humidity_2m))),
+    sky: c.is_day === 0 ? 'dark' : (c.cloud_cover <= 40 ? 'sun' : 'cloud'),
+    wet: snowy ? 'snow' : (rainy ? 'rain' : 'dry')
+  };
+}
 /*ENDCALC*/
 
 (function(){
@@ -288,13 +312,14 @@ function extrasFor(inp, r){
   var KEY = 'runlayers.v1';
   var $ = function(id){ return document.getElementById(id); };
   var clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
-  var inp = Object.assign({}, DEF_IN), tune = Object.assign({}, DEF_TUNE);
+  var inp = Object.assign({}, DEF_IN), tune = Object.assign({}, DEF_TUNE), auto = false;
 
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved){
       if (saved.inp) Object.assign(inp, saved.inp);
       if (saved.tune) Object.assign(tune, saved.tune);
+      if (saved.auto) auto = true;
     }
   } catch (e) {}
   ['temp','wind','hum','nature'].forEach(function(k){ if (!isFinite(inp[k])) inp[k] = DEF_IN[k]; });
@@ -303,7 +328,7 @@ function extrasFor(inp, r){
   if (['dry','rain','snow'].indexOf(inp.wet) < 0) inp.wet = DEF_IN.wet;
   if (['easy','long','workout','race'].indexOf(inp.run) < 0) inp.run = DEF_IN.run;
 
-  function save(){ try { localStorage.setItem(KEY, JSON.stringify({inp:inp, tune:tune})); } catch (e) {} }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify({inp:inp, tune:tune, auto:auto})); } catch (e) {} }
   function fmt(n){ return (n < 0 ? '−' : '') + Math.abs(Math.round(n)) + '°'; }
   function sgn(n){ return (n < 0 ? '−' : '+') + Math.abs(Math.round(n)) + '°'; }
 
@@ -447,6 +472,39 @@ function extrasFor(inp, r){
     syncTune();
   }
   function update(){ save(); sync(); render(); }
+  var liveBtn = $('liveBtn'), liveStatus = $('liveStatus'), autoBox = $('autoFill');
+  function setStatus(t){ liveStatus.textContent = t; }
+  function getWeather(){
+    if (!navigator.geolocation){ setStatus('This browser has no location access. Enter the weather by hand.'); return; }
+    liveBtn.disabled = true; setStatus('Finding your location\u2026');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      setStatus('Fetching weather\u2026');
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.coords.latitude.toFixed(2) +
+        '&longitude=' + pos.coords.longitude.toFixed(2) +
+        '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,cloud_cover,is_day,precipitation,rain,snowfall,weather_code' +
+        '&temperature_unit=fahrenheit&wind_speed_unit=mph';
+      fetch(url).then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .then(function(j){
+          if (!j || !j.current) throw new Error('no data');
+          Object.assign(inp, weatherToInputs(j.current)); update();
+          setStatus('Updated ' + new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + '. Change anything below to adjust.');
+        })
+        .catch(function(){ setStatus('Could not load the weather. You may be offline. Enter it by hand.'); })
+        .then(function(){ liveBtn.disabled = false; });
+    }, function(err){
+      setStatus(err && err.code === 1 ? 'Location is off for this app. Allow it in iPhone Settings, or enter the weather by hand.' : 'Could not get your location. Enter the weather by hand.');
+      liveBtn.disabled = false;
+    }, {enableHighAccuracy:false, timeout:10000, maximumAge:600000});
+  }
+  liveBtn.addEventListener('click', getWeather);
+  autoBox.checked = auto;
+  autoBox.addEventListener('change', function(){ auto = autoBox.checked; save(); });
+  if (auto && navigator.permissions && navigator.permissions.query){
+    try {
+      navigator.permissions.query({name:'geolocation'}).then(function(s){ if (s.state === 'granted') getWeather(); }).catch(function(){});
+    } catch (e) {}
+  }
+
   update();
 })();
 </script>
